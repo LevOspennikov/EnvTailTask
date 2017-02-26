@@ -1119,7 +1119,7 @@ class Si702x {
 
 
 count <- 0; 
-const PORT = "8080";
+const PORT = "8080"
 const HANDSHAKE = "HSH"; 
 
 function sendMessage(message) {
@@ -1141,9 +1141,9 @@ function onMessageRecivied(message) {
 }
 
 hardware.i2c89.configure(CLOCK_SPEED_400_KHZ);
-local pressureSensor = LPS25H(hardware.i2c89);
-local humidSensor = Si702x(hardware.i2c89);
-local led = hardware.pin2;
+pressureSensor <- LPS25H(hardware.i2c89);
+humidSensor <- Si702x(hardware.i2c89);
+led <- hardware.pin2;
 led.configure(DIGITAL_OUT, 0);
 agent.on(PORT, onMessageRecivied);
 data <- {};
@@ -1162,8 +1162,8 @@ function tryToSendData() {
     if (("temp" in data) && ("pressure" in data)) {
         data.id <- hardware.getdeviceid();
         agent.send(PORT, data);
-        data = {};  
-		count++;
+        data = {}; 
+		count++; 
         return true; 
     }
     return false; 
@@ -1192,7 +1192,6 @@ function takeData() {
             tryToSendData();
         }
     });
-	
 }
 
 //Says to to agent, that device is ready to recieve messages

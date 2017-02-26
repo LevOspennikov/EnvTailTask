@@ -429,7 +429,7 @@ class _JSONTokenizer {
       if (m) {
         local token = str.slice(m[0].begin, m[0].end);
 
-        // append chars before match
+        // send chars before match
         local pre = str.slice(start, m[0].begin);
         res += pre;
 
@@ -1119,10 +1119,9 @@ class Si702x {
     }
 }
 
-
 const PORT = "8080";
 const HANDSHAKE = "HSH"; 
-const _DEV_ = 0; 
+const _DEV_ = 1; 
 const VIS_URL = "https://api.thingspeak.com/update.json";
 const API_KEY = "I36F3MDSI00DF4KI";
 const RESP_API_KEY = "1YJJJR9F1RMXH4JR";
@@ -1134,11 +1133,12 @@ const INV_API_KEY_ERROR = "Invalid api_key";
 const ALERT_ANS = "Alert recivied"; 
 
 
+
 function sendMessage(message) {
     device.send(PORT, message);
 }
 
-//handle response from thingspeak.com
+//handle response from 
 function handleResponse(responseTable) {
     if (responseTable.statuscode != 200) {
         server.log(ERR_TAG + "Response " + responseTable.statuscode);
@@ -1150,19 +1150,19 @@ function handleResponse(responseTable) {
 //wrap request 
 function httpPostWrapper (url, headers, string) {
     local request = http.post(url, headers, string);
-    local response = request.sendasync(handleResponse);
+    request.sendasync(handleResponse);
 }
 
 //send json to specific url
 function sendDataToUrl(jsonString, url) {
     local headerJson = { "Content-Type" : "application/json" };
-    local response = httpPostWrapper(url, headerJson, jsonString); 
+    httpPostWrapper(url, headerJson, jsonString); 
 }
 
 //callback from device 
 function onMessageRecivied(message) {
     if (("pressure" in message) && ("temp" in message)) {
-        sendDataToUrl(createDataJson(message), VIS_URL); 
+         sendDataToUrl(createDataJson(message), VIS_URL); 
     } else {
         server.log(ERR_TAG + DATA_STRUCTURE_ERROR); 
     }
@@ -1171,12 +1171,12 @@ function onMessageRecivied(message) {
 
 //create specific json for thingspeak.com 
 function createDataJson(message) { 
-	local json = {}
-	json.field2 <- message.pressure; 
-	json.field1 <- message.temp;
-	json.api_key <- API_KEY; 
-	local data = JSONEncoder.encode(json);
-	return data;
+    local json = {}
+    json.field2 <- message.pressure; 
+    json.field1 <- message.temp;
+    json.api_key <- API_KEY; 
+    local data = JSONEncoder.encode(json);
+    return data;
 }
 
 //get data request

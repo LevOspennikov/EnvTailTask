@@ -39,13 +39,13 @@ function handleResponse(responseTable) {
 //wrap request 
 function httpPostWrapper (url, headers, string) {
     local request = http.post(url, headers, string);
-    local response = request.sendasync(handleResponse);
+    request.sendasync(handleResponse);
 }
 
 //send json to specific url
 function sendDataToUrl(jsonString, url) {
     local headerJson = { "Content-Type" : "application/json" };
-    local response = httpPostWrapper(url, headerJson, jsonString); 
+    httpPostWrapper(url, headerJson, jsonString); 
 }
 
 //callback from device 

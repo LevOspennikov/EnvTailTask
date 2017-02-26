@@ -6,7 +6,7 @@ class AgentTestCase1 extends ImpTestCase {
 	}
 	
 	function floatEquals(a, b) {
-		//temp!
+		// Temp!
 		local a1 = a.tostring();
 		local b1 = b.tostring();
 		return (a1 == b1);
@@ -14,7 +14,7 @@ class AgentTestCase1 extends ImpTestCase {
 	}
 
 	function testRequestHandler() {
-		local rdata = {"api_key":"1YJJJR9F1RMXH4JR","allert":""};
+		local rdata = {"api_key" : "1YJJJR9F1RMXH4JR", "allert" : ""};
 		local bdata = {"api_key" : "WRONG_KEY", "allert" : ""};
 		local response = {}; 
 		response.send <- function() {};
@@ -32,14 +32,14 @@ class AgentTestCase1 extends ImpTestCase {
 	
 	
 	function testCreateJson() {
-		local NUMS = 20; 
-		for (local i = 0; i < NUMS; i++) {
+		const NUMS = 20; 
+		for (local i = 0 ; i < NUMS ; i++) {
 			local press = 1.0 * math.rand() % 400;
 			local temp = 1.0 * math.rand() % 100;
 			local message = {"pressure" : press,
 							 "temp" : temp 	};
 			local json = JSONParser.parse(createDataJson(message)); 
-			//server.log("IMPOTANT: " + floatEquals(temp, json.field1) + math.fabs(temp - json.field1));
+			// server.log("IMPOTANT: " + floatEquals(temp, json.field1) + math.fabs(temp - json.field1));
 			assertTrue(floatEquals(temp, json.field1), temp + " != " + json.field1);
 			assertTrue(floatEquals(press, json.field2), press + " != " + json.field2);
 		}

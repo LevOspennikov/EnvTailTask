@@ -7,9 +7,9 @@ class DeviceTestCase1 extends ImpTestCase {
 	}
 
 	function testTakeData() {
-		local NUMS = 1;
+		const NUMS = 1;
 		
-		for (local i = 0; i < NUMS; i++) {
+		for (local i = 0 ; i < NUMS ; i++) {
 			takeData();
 			imp.sleep(1); 
 		}
