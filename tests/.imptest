@@ -1,0 +1,10 @@
+{
+  "apiKey": "88472f28d069a3a3cb9a4f4d8b6121f1",
+  "modelId": "0GW76f-onRjx",
+  "devices": [
+    "2340666938a609ee"
+  ],
+  "deviceFile": "device.nut",
+  "agentFile": "agent.nut",
+  "stopOnFailure": true
+}
