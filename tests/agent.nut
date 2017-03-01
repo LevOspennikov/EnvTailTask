@@ -314,10 +314,159 @@ class JSONParser {
   }
 }
 
+class PrettyPrinter {
+
+    static version = [1, 0, 1];
+
+    _indentStr = null;
+    _truncate = null;
+    _encode = null;
+
+    /**
+     * @param {string} indentStr - String prepended to each line to add one
+     * level of indentation (defaults to four spaces)
+     * @param {boolean} truncate - Whether or not to truncate long output (can
+     * also be set when print is called)
+     */
+    function constructor(indentStr = null, truncate=true) {
+        _indentStr = (indentStr == null) ? "    " : indentStr;
+        _truncate = truncate;
+
+        if ("JSONEncoder" in getroottable()) {
+            // The JSONEncoder class is available, use it
+            _encode = JSONEncoder.encode.bindenv(JSONEncoder);
+
+        } else if (imp.environment() == ENVIRONMENT_AGENT) {
+            // We are in the agent, fall back to built in encoder
+            _encode = http.jsonencode.bindenv(http);
+
+        } else  {
+            throw "Unmet dependency: PrettyPrinter requires JSONEncoder when ran in the device";
+        }
+    }
+
+    /**
+     * Prettifies a squirrel object
+     *
+     * Functions will NOT be included
+     * @param {*} obj - A squirrel object
+     * @returns {string} json - A pretty JSON string
+     */
+    function format(obj) {
+        return _prettify(_encode(obj));
+    }
+
+    /**
+     * Pretty-prints a squirrel object
+     *
+     * Functions will NOT be included
+     * @param {*} obj - Object to print
+     * @param {boolean} truncate - Whether to truncate long output (defaults to
+     * the instance-level configuration set in the constructor)
+     */
+    function print(obj, truncate=null) {
+        truncate = (truncate == null) ? _truncate : truncate;
+        local pretty = this.format(obj);
+        (truncate)
+            ? server.log(pretty)
+            : _forceLog(pretty);
+    }
+
+    /**
+     * Forceably logs a string to the server by logging one line at a time
+     *
+     * This circumvents then log's truncation, but messages may still be
+     * throttled if string is too long
+     * @param {string} string - String to log
+     * @param {number max - Maximum number of lines to log
+     */
+    static function _forceLog(string, max=null) {
+        foreach (i, line in split(string, "\n")) {
+            if (max != null && i == max) {
+                break;
+            }
+            server.log(line);
+        }
+    }
+    /**
+     * Repeats a string a given number of times
+     *
+     * @returns {string} repeated - a string made of the input string repeated
+     * the given number of times
+     */
+    static function _repeat(string, times) {
+        local r = "";
+        for (local i = 0; i < times; i++) {
+            r += string;
+        }
+        return r;
+    }
+
+    /**
+     * Prettifies some JSON
+     * @param {string} json - JSON encoded string
+     */
+    function _prettify(json) {
+        local i = 0; // Position in the input string
+        local pos = 0; // Current level of indentation
+        
+        local char = null; // Current character
+        local prev = null; // Previous character
+        
+        local inQuotes = false; // Are we inside a pair of quotes?
+        
+        local r = ""; // Result string
+        
+        local len = json.len();
+        
+        while (i < len) {
+            char = json[i];
+            
+            if (char == '"' && prev != '\\') {
+                // End of quoted string
+                inQuotes = !inQuotes;
+                
+            } else if((char == '}' || char == ']') && !inQuotes) {
+                // End of an object, dedent
+                pos--;
+                // Move to the next line and add indentation
+                r += "\n" + _repeat(_indentStr, pos);
+                
+            } else if (char == ' ' && !inQuotes) {
+                // Skip any spaces added by the JSON encoder
+                i++;
+                continue;
+                
+            }
+            
+            // Push the current character
+            r += char.tochar();
+            
+            if ((char == ',' || char == '{' || char == '[') && !inQuotes) {
+                if (char == '{' || char == '[') {
+                    // Start of an object, indent further
+                    pos++;
+                }
+                // Move to the next line and add indentation
+                r += "\n" + _repeat(_indentStr, pos);
+            } else if (char == ':' && !inQuotes) {
+                // Add a space between table keys and values
+                r += " ";
+            }
+     
+            prev = char;
+            i++;
+        }
+        
+        return r;
+    }
+}
 /**
  * JSON Tokenizer
  * @package JSONParser
  */
+ 
+ 
 class _JSONTokenizer {
 
   _ptfnRegex = null;
@@ -342,13 +491,7 @@ class _JSONTokenizer {
     // string unescaper tokenizer pattern
     this._unescapeRegex = regexp("\\\\(?:(?:u\\d{4})|[\\\"\\\\/bfnrt])");
   }
-
-  /**
-   * Get next available token
-   * @param {string} str
-   * @param {integer} start
-   * @return {{type,value,length}|null}
-   */
+  
   function nextToken(str, start = 0) {
 
     local
@@ -1125,7 +1268,7 @@ const _DEV_ = 1;
 const VIS_URL = "https://api.thingspeak.com/update.json";
 const API_KEY = "I36F3MDSI00DF4KI";
 const RESP_API_KEY = "1YJJJR9F1RMXH4JR";
-const UPDATE_TIME = 100;
+const UPDATE_TIME = 10;
 
 const ERR_TAG = "ERROR: ";
 const DATA_STRUCTURE_ERROR = "Wrong data message structure";
@@ -1133,84 +1276,93 @@ const INV_API_KEY_ERROR = "Invalid api_key";
 const ALERT_ANS = "Alert recivied"; 
 
 
-
-function sendMessage(message) {
-    device.send(PORT, message);
-}
-
-//handle response from 
-function handleResponse(responseTable) {
-    if (responseTable.statuscode != 200) {
-        server.log(ERR_TAG + "Response " + responseTable.statuscode);
-    } else {
-       imp.wakeup(UPDATE_TIME, collectDataFromDevice);
-    }
-}
-
-//wrap request 
-function httpPostWrapper (url, headers, string) {
-    local request = http.post(url, headers, string);
-    request.sendasync(handleResponse);
-}
-
-//send json to specific url
-function sendDataToUrl(jsonString, url) {
-    local headerJson = { "Content-Type" : "application/json" };
-    httpPostWrapper(url, headerJson, jsonString); 
-}
-
-//callback from device 
-function onMessageRecivied(message) {
-    if (("pressure" in message) && ("temp" in message)) {
-         sendDataToUrl(createDataJson(message), VIS_URL); 
-    } else {
-        server.log(ERR_TAG + DATA_STRUCTURE_ERROR); 
+class AgentEnvTail { 
+    
+    _pp = null; 
+    print = null
+    
+    function debugOutput(message) {
+        if (_DEV_) {
+            print(message);
+        }
     }
    
-}
-
-//create specific json for thingspeak.com 
-function createDataJson(message) { 
-    local json = {}
-    json.field2 <- message.pressure; 
-    json.field1 <- message.temp;
-    json.api_key <- API_KEY; 
-    local data = JSONEncoder.encode(json);
-    return data;
-}
-
-//get data request
-function collectDataFromDevice() {
-    server.log("Ask to collect");
-    sendMessage("collect"); 
-}
-
-//starting server, when handshake is done
-function startServer(message) {
-    server.log("Start server"); 
-    collectDataFromDevice();
-}
-
-//handler for http requests from internet 
-function requestHandler(request, response) {
-    try {
-        server.log("message from server");
-        local json = JSONParser.parse(request.body);
-        if (("allert" in json) && ("api_key" in json)
-             && (json.api_key == RESP_API_KEY)) {
-            server.log(ALERT_ANS); 
-            response.send(200, ALERT_ANS);
-            sendMessage("allert"); 
-        } else {
-            server.log(INV_API_KEY_ERROR);
-            response.send(500, INV_API_KEY_ERROR);
+    function constructor() { 
+        if (_DEV_) {
+            _pp = PrettyPrinter(null, false);  
+            print = _pp.print.bindenv(_pp);
         }
-    } catch (error) {
-        server.log(ERR_TAG + error);
-        response.send(500, error);
+        device.on(HANDSHAKE, startServer.bindenv(this));
+        device.on(PORT, onMessageRecivied.bindenv(this)); 
+        http.onrequest(requestHandler.bindenv(this));
+    }
+    
+    //handle response from 
+    function handleResponse(responseTable) {
+        debugOutput(responseTable); 
+        if (responseTable.statuscode != 200) {
+            debugOutput(ERR_TAG + "Response " + responseTable.statuscode);
+        }
+        imp.wakeup(UPDATE_TIME, collectDataFromDevice.bindenv(this));
+    }
+
+    //send json to specific url
+    function sendDataToUrl(jsonString, url) {
+        local headerJson = { "Content-Type" : "application/json" };
+        local request = http.post(url, headerJson, jsonString);
+        request.sendasync(handleResponse.bindenv(this));    
+    }
+
+    //callback from device 
+    function onMessageRecivied(message) {
+        if (("pressure" in message) && ("temp" in message)) {
+             sendDataToUrl(createDataString(message), VIS_URL); 
+        } else {
+            debugOutput(ERR_TAG + DATA_STRUCTURE_ERROR); 
+        }
+    }
+
+    //create specific string json for thingspeak.com 
+    function createDataString(message) { 
+        local json = {  "field1" : message.temp,
+                        "field2" : message.pressure,
+                        "api_key" : API_KEY };
+        return JSONEncoder.encode(json);
+    }
+    
+     //starting server, when handshake is done
+    function startServer(message) {
+        debugOutput("Device Id: " + message); 
+        debugOutput("Start server"); 
+        this.collectDataFromDevice();
+    }
+
+    //get data request
+    function collectDataFromDevice() {
+        debugOutput("Ask to collect");
+        device.send(PORT, "collect");
+    }
+
+    //handler for http requests from internet 
+    function requestHandler(request, response) {
+        try {
+            debugOutput("message from server");
+            local json = JSONParser.parse(request.body);
+            if (("api_key" in json) && (json.api_key == RESP_API_KEY)) {
+                if ("alert" in json) {
+                    debugOutput(ALERT_ANS); 
+                    response.send(200, ALERT_ANS);
+                    device.send(PORT, "alert"); 
+                }
+            } else {
+                debugOutput(INV_API_KEY_ERROR);
+                response.send(500, INV_API_KEY_ERROR);
+            }
+        } catch (error) {
+            debugOutput(ERR_TAG + error);
+            response.send(500, error);
+        }
     }
 }
 
-device.on(HANDSHAKE, startServer);
-device.on(PORT, onMessageRecivied); 
-http.onrequest(requestHandler);
+local agentEnv = AgentEnvTail(); 
