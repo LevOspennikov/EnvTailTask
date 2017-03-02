@@ -25,6 +25,9 @@ class DeviceEnvTail {
         _led = hardware.pin2;
         _led.configure(DIGITAL_OUT, 0);
         agent.on(PORT, onMessageRecivied.bindenv(this));
+        
+        //Says to to agent, that device is ready to recieve messages
+        imp.wakeup(0, @() agent.send(HANDSHAKE, hardware.getdeviceid()) );
     }
 
     //ServerMessage handler
@@ -89,6 +92,3 @@ class DeviceEnvTail {
 }
 
 local deviceEnvTail = DeviceEnvTail(); 
-
-//Says to to agent, that device is ready to recieve messages
-imp.wakeup(0, @() agent.send(HANDSHAKE, hardware.getdeviceid()) );
