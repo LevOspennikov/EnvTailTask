@@ -19,15 +19,13 @@ class DeviceTestCase1 extends ImpTestCase {
             count++;
         }.bindenv(this); 
         for (local i = 0 ; i < NUMS ; i++) { 
-            _DET.takeData(callback);
+            _DET._takeData(callback);
             
         }
         
         imp.wakeup(4, checkCount.bindenv(this)); 
     }
     
-
-  
     function tearDown() {
         _DET = null; 
     }

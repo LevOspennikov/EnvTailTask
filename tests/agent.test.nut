@@ -1,6 +1,5 @@
 class AgentTestCase1 extends ImpTestCase {
 
-    static mfabs = math.fabs;
     static RESP_API_KEY = "1YJJJR9F1RMXH4JR";
     _AET = null; 
     
@@ -8,10 +7,6 @@ class AgentTestCase1 extends ImpTestCase {
         _AET = AgentEnvTail(); 
     }
     
-    function floatEquals(a, b) {
-        return mfabs(a - b) < 0.1
-    }
-
     function testRequestHandler() {
         local rdata = {"api_key" : this.RESP_API_KEY, "alert" : ""};
         local bdata = {"api_key" : "WRONG_KEY", "alert" : ""};
@@ -29,18 +24,14 @@ class AgentTestCase1 extends ImpTestCase {
         _AET.requestHandler(request, response);
     }
     
-    
-    function testCreateJson() {
-        const NUMS = 20; 
-        for (local i = 0 ; i < NUMS ; i++) {
-            local press = 1.0 * math.rand() % 400;
-            local temp = 1.0 * math.rand() % 100;
-            local message = {"pressure" : press,
-                             "temp" : temp  };
-            local json = JSONParser.parse(_AET.createDataString(message)); 
-            assertTrue(floatEquals(temp, json.field1), temp + " != " + json.field1);
-            assertTrue(floatEquals(press, json.field2), press + " != " + json.field2);
-        }
+    function testVerifyJson() {
+        local press = 250.356;
+        local temp = 27.3435;
+        local message = {"pressure" : press,
+                         "temp" : temp  };
+        local json = JSONParser.parse(_AET._createDataString(message)); 
+        assertEqual(temp.tostring(), json.field1.tostring(), temp + " != " + json.field1);
+        assertEqual(press.tostring(), json.field2.tostring(), press + " != " + json.field2);
     }
   
     function tearDown() {

@@ -25,56 +25,49 @@ class DeviceEnvTail {
         _led = hardware.pin2;
         _led.configure(DIGITAL_OUT, 0);
         agent.on(PORT, onMessageRecivied.bindenv(this));
-        //Says to to agent, that device is ready to recieve messages
-        agent.send(HANDSHAKE, hardware.getdeviceid()); 
-    }
-    
-    function debugOutput(message) {
-        if (_DEV_) {
-            server.log(message);
-        }
     }
 
     //ServerMessage handler
     function onMessageRecivied(message) {
         switch (message) {
             case "collect":
-                takeData();
+                _takeData();
                 break;
             case "alert":
-                alertSound(); 
+                _alertSound(); 
                 break;
             default:
-                debugOutput("Unexpected message " + message)
+                _log("Unexpected message " + message)
         }
     }
 
     //Do some alert when temperature is high
-    function alertSound() { 
+    function _alertSound() { 
         _led.write(1);
-        debugOutput("FIRE ALERT!");
-        debugOutput("FIRE ALERT!");
-        debugOutput("FIRE ALERT!");
+        _log("FIRE ALERT!");
+        _log("FIRE ALERT!");
+        _log("FIRE ALERT!");
         imp.wakeup(1, (@() _led.write(0)).bindenv(this)); 
     }
 
     //Read data from sensors
-    function takeData(callback = null) {
+    function _takeData(callback = null) {
         local data = {};    
         _humidSensor.read(function(reading) {
             if ("err" in reading) {
                 data.temp <- null;
-                debugOutput("Error reading temperature: " + reading.err);
+                _err("Error reading temperature: " + reading.err);
             } else {
                 data.temp <- reading.temperature;
-                debugOutput(format("Current Temperature: %0.1f deg C", data.temp));
+                _log(format("Current Temperature: %0.1f deg C", data.temp));
             }
             _pressureSensor.read(function(reading) {
                 if ("err" in reading) {
-                    debugOutput("Error reading pressure: " + reading.err); 
+                    data.pressure <- null; 
+                    _err("Error reading pressure: " + reading.err); 
                 } else {
                     data.pressure <- reading.pressure; 
-                    debugOutput(format("Current Pressure: %0.2f hPa", reading.pressure));
+                    _log(format("Current Pressure: %0.2f hPa", reading.pressure));
                 }
                 agent.send(PORT, data);
                 if (callback != null) { 
@@ -83,6 +76,19 @@ class DeviceEnvTail {
             }.bindenv(this));
         }.bindenv(this));
     }
+    
+    function _log(message) {
+        if (_DEV_) {
+            server.log(message);
+        }
+    }
+    
+    function _err(message) {
+        server.error(message);
+    }
 }
 
 local deviceEnvTail = DeviceEnvTail(); 
+
+//Says to to agent, that device is ready to recieve messages
+imp.wakeup(0, @() agent.send(HANDSHAKE, hardware.getdeviceid()) );

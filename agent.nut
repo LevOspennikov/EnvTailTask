@@ -20,12 +20,6 @@ class AgentEnvTail {
     
     _pp = null; 
     print = null
-    
-    function debugOutput(message) {
-        if (_DEV_) {
-            print(message);
-        }
-    }
    
     function constructor() { 
         if (_DEV_) {
@@ -36,71 +30,77 @@ class AgentEnvTail {
         device.on(PORT, onMessageRecivied.bindenv(this)); 
         http.onrequest(requestHandler.bindenv(this));
     }
-    
-    //handle response from 
-    function handleResponse(responseTable) {
-        debugOutput(responseTable); 
-        if (responseTable.statuscode != 200) {
-            debugOutput(ERR_TAG + "Response " + responseTable.statuscode);
-        }
-        imp.wakeup(UPDATE_TIME, collectDataFromDevice.bindenv(this));
-    }
-
-    //send json to specific url
-    function sendDataToUrl(jsonString, url) {
-        local headerJson = { "Content-Type" : "application/json" };
-        local request = http.post(url, headerJson, jsonString);
-        request.sendasync(handleResponse.bindenv(this));    
-    }
 
     //callback from device 
     function onMessageRecivied(message) {
         if (("pressure" in message) && ("temp" in message)) {
-             sendDataToUrl(createDataString(message), VIS_URL); 
+             _sendDataToUrl(_createDataString(message), VIS_URL); 
         } else {
-            debugOutput(ERR_TAG + DATA_STRUCTURE_ERROR); 
+            _log(ERR_TAG + DATA_STRUCTURE_ERROR); 
         }
-    }
-
-    //create specific string json for thingspeak.com 
-    function createDataString(message) { 
-        local json = {  "field1" : message.temp,
-                        "field2" : message.pressure,
-                        "api_key" : API_KEY };
-        return JSONEncoder.encode(json);
     }
     
      //starting server, when handshake is done
     function startServer(message) {
-        debugOutput("Device Id: " + message); 
-        debugOutput("Start server"); 
+        _log("Device Id: " + message); 
+        _log("Start server"); 
         this.collectDataFromDevice();
     }
 
     //get data request
     function collectDataFromDevice() {
-        debugOutput("Ask to collect");
+        _log("Ask to collect");
         device.send(PORT, "collect");
     }
 
     //handler for http requests from internet 
     function requestHandler(request, response) {
         try {
-            debugOutput("message from server");
+            _log("message from server");
             local json = JSONParser.parse(request.body);
             if (("api_key" in json) && (json.api_key == RESP_API_KEY)) {
                 if ("alert" in json) {
-                    debugOutput(ALERT_ANS); 
+                    _log(ALERT_ANS); 
                     response.send(200, ALERT_ANS);
                     device.send(PORT, "alert"); 
                 }
             } else {
-                debugOutput(INV_API_KEY_ERROR);
+                _log(INV_API_KEY_ERROR);
                 response.send(500, INV_API_KEY_ERROR);
             }
         } catch (error) {
-            debugOutput(ERR_TAG + error);
+            _log(ERR_TAG + error);
             response.send(500, error);
+        }
+    }
+    
+    //create specific string json for thingspeak.com 
+    function _createDataString(message) { 
+        local json = {  "field1" : message.temp,
+                        "field2" : message.pressure,
+                        "api_key" : API_KEY };
+        return JSONEncoder.encode(json);
+    }
+    
+    //handle response from 
+    function _handleResponse(responseTable) {
+        _log(responseTable); 
+        if (responseTable.statuscode != 200) {
+            _log(ERR_TAG + "Response " + responseTable.statuscode);
+        }
+        imp.wakeup(UPDATE_TIME, collectDataFromDevice.bindenv(this));
+    }
+
+    //send json to specific url
+    function _sendDataToUrl(jsonString, url) {
+        local headerJson = { "Content-Type" : "application/json" };
+        local request = http.post(url, headerJson, jsonString);
+        request.sendasync(_handleResponse.bindenv(this));    
+    }
+    
+    function _log(message) {
+        if (_DEV_) {
+            print(message);
         }
     }
 }
