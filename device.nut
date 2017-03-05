@@ -2,6 +2,7 @@
 #require "Si702x.class.nut:1.0.0"
 #require "PrettyPrinter.class.nut:1.0.1"
 #require "JSONEncoder.class.nut:1.0.0"
+#require "Promise.class.nut:3.0.0"
 
 const PORT = "8080"
 const HANDSHAKE = "HSH"; 
@@ -34,7 +35,7 @@ class DeviceEnvTail {
     function onMessageRecivied(message) {
         switch (message) {
             case "collect":
-                _takeData();
+                _takeData(@() server.log("callback"));
                 break;
             case "alert":
                 _alertSound(); 
@@ -55,15 +56,34 @@ class DeviceEnvTail {
 
     //Read data from sensors
     function _takeData(callback = null) {
-        local data = {};    
-        _humidSensor.read(function(reading) {
-            if ("err" in reading) {
-                data.temp <- null;
-                _err("Error reading temperature: " + reading.err);
-            } else {
-                data.temp <- reading.temperature;
-                _log(format("Current Temperature: %0.1f deg C", data.temp));
+        local data = {};
+        _readTemp(data)
+        .then(_readPressure.bindenv(this))
+        .then(function(data) {
+            agent.send(PORT, data);
+            if (callback != null) { 
+                callback();
             }
+        })
+    }
+
+    function _readTemp(data) {
+        return Promise(function (resolve, reject) { 
+             _humidSensor.read( function(reading) {
+                if ("err" in reading) {
+                    data.temp <- null;
+                    _err("Error reading temperature: " + reading.err);
+                } else {
+                    data.temp <- reading.temperature;
+                    _log(format("Current Temperature: %0.1f deg C", data.temp));
+                }
+                resolve(data);
+            }.bindenv(this))  
+        }.bindenv(this))
+    }
+    
+    function _readPressure(data) {
+        return Promise(function (resolve, reject) { 
             _pressureSensor.read(function(reading) {
                 if ("err" in reading) {
                     data.pressure <- null; 
@@ -72,12 +92,9 @@ class DeviceEnvTail {
                     data.pressure <- reading.pressure; 
                     _log(format("Current Pressure: %0.2f hPa", reading.pressure));
                 }
-                agent.send(PORT, data);
-                if (callback != null) { 
-                    callback();
-                }
-            }.bindenv(this));
-        }.bindenv(this));
+                resolve(data); 
+            }.bindenv(this))
+        }.bindenv(this))
     }
     
     function _log(message) {
