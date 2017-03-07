@@ -56,43 +56,45 @@ class DeviceEnvTail {
 
     //Read data from sensors
     function _takeData(callback = null) {
-        local data = {};
-        _readTemp(data)
-        .then(_readPressure.bindenv(this))
+        local functions = [_readTemp.bindenv(this), _readPressure.bindenv(this)]
+        Promise.all(functions)
         .then(function(data) {
-            agent.send(PORT, data);
+            local indicators = {}; 
+            indicators.temp <- data[0];
+            indicators.pressure <- data[1];
+            agent.send(PORT, indicators);
             if (callback != null) { 
                 callback();
             }
         })
     }
 
-    function _readTemp(data) {
+    function _readTemp() {
         return Promise(function (resolve, reject) { 
              _humidSensor.read( function(reading) {
+                local temp = null; 
                 if ("err" in reading) {
-                    data.temp <- null;
                     _err("Error reading temperature: " + reading.err);
                 } else {
-                    data.temp <- reading.temperature;
-                    _log(format("Current Temperature: %0.1f deg C", data.temp));
+                    temp = reading.temperature;
+                    _log(format("Current Temperature: %0.1f deg C", temp));
                 }
-                resolve(data);
+                resolve(temp);
             }.bindenv(this))  
         }.bindenv(this))
     }
     
-    function _readPressure(data) {
+    function _readPressure() {
         return Promise(function (resolve, reject) { 
             _pressureSensor.read(function(reading) {
+                local pressure = null;
                 if ("err" in reading) {
-                    data.pressure <- null; 
                     _err("Error reading pressure: " + reading.err); 
                 } else {
-                    data.pressure <- reading.pressure; 
+                    pressure = reading.pressure; 
                     _log(format("Current Pressure: %0.2f hPa", reading.pressure));
                 }
-                resolve(data); 
+                resolve(pressure); 
             }.bindenv(this))
         }.bindenv(this))
     }
